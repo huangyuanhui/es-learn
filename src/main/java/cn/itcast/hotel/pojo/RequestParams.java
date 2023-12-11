@@ -18,4 +18,7 @@ public class RequestParams {
     private String starName;
     private Integer minPrice;
     private Integer maxPrice;
+
+    // 经纬度
+    private String location;
 }
