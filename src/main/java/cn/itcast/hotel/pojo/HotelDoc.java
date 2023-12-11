@@ -20,6 +20,8 @@ public class HotelDoc {
 
     private Object distance;
 
+    private Boolean isAD;
+
     public HotelDoc(Hotel hotel) {
         this.id = hotel.getId();
         this.name = hotel.getName();

@@ -16,7 +16,10 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
+import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
@@ -41,8 +44,9 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
     public PageResult search(RequestParams params) {
         try {
             SearchRequest request = new SearchRequest("hotel");
+
             // query：查询DSL
-            BoolQueryBuilder boolQuery = buildBasicQuery(params);
+            QueryBuilder boolQuery = buildBasicQuery(params);
             request.source().query(boolQuery);
 
             // from+size：分页
@@ -75,7 +79,7 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
      * @param params
      * @return
      */
-    private BoolQueryBuilder buildBasicQuery(RequestParams params) {
+    private QueryBuilder buildBasicQuery(RequestParams params) {
         // 查询
         BoolQueryBuilder boolQuery = new BoolQueryBuilder();
         // 关键字搜索
@@ -107,7 +111,23 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
             boolQuery.filter(QueryBuilders
                     .rangeQuery("price").gte(minPrice).lte(maxPrice));
         }
-        return boolQuery;
+
+        // 算分函数-function score
+        FunctionScoreQueryBuilder functionScoreQuery =
+                QueryBuilders.functionScoreQuery(
+                        // 原始查询
+                        boolQuery,
+                        // function score的数组
+                        new FunctionScoreQueryBuilder.FilterFunctionBuilder[]{
+                                // 其中的一个function score元素
+                                new FunctionScoreQueryBuilder.FilterFunctionBuilder(
+                                        /// 过滤条件
+                                        QueryBuilders.termQuery("isAD", true),
+                                        // 算分函数
+                                        ScoreFunctionBuilders.weightFactorFunction(10)
+                                )
+                        });
+        return functionScoreQuery;
     }
 
     /**
