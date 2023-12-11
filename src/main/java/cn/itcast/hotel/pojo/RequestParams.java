@@ -11,4 +11,11 @@ public class RequestParams {
     private Integer page;
     private Integer size;
     private String orderBy;
+
+    private String brand;
+    private String city;
+    // 酒店星级
+    private String starName;
+    private Integer minPrice;
+    private Integer maxPrice;
 }
