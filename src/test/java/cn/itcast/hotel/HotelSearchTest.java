@@ -8,17 +8,23 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.text.Text;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
+import org.elasticsearch.search.sort.SortOrder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
+import java.util.Map;
 
 @SpringBootTest
 public class HotelSearchTest {
@@ -76,6 +82,25 @@ public class HotelSearchTest {
             String json = hit.getSourceAsString();
             // 4.5：反序列化
             HotelDoc hotelDoc = JSON.parseObject(json, HotelDoc.class);
+
+            // 4.6：高亮结果解析
+            // 4.6.1：获取高亮结果
+            Map<String, HighlightField> highlightFields = hit.getHighlightFields();
+            if (!CollectionUtils.isEmpty(highlightFields)) {
+                // 4.6.2：根据字段获取高亮结果
+                HighlightField nameHighlight = highlightFields.get("name");
+                if (nameHighlight != null) {
+                    // 4.6.3：获取高亮值
+                    String name = nameHighlight.getFragments()[0].string();
+                    // 4.6.1：覆盖非高亮结果
+                    hotelDoc.setName(name);
+                }
+                HighlightField brandHighlight = highlightFields.get("brand");
+                if (brandHighlight != null) {
+                    String brand = brandHighlight.getFragments()[0].toString();
+                    hotelDoc.setBrand(brand);
+                }
+            }
             System.out.println("hotelDoc = " + hotelDoc);
         }
     }
@@ -107,4 +132,29 @@ public class HotelSearchTest {
         parseResponse(response);
     }
 
+
+    @Test
+    public void testSortAndPage() throws IOException {
+        SearchRequest request = new SearchRequest("hotel");
+        request.source().query(QueryBuilders.matchAllQuery());
+        request.source().sort("price", SortOrder.ASC)
+                .sort("score", SortOrder.DESC);
+        request.source().from(0).size(5);
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        parseResponse(response);
+    }
+
+    @Test
+    public void tesstHighlight() throws IOException {
+        SearchRequest request = new SearchRequest("hotel");
+        request.source().query(QueryBuilders.matchQuery("all", "上海如家"));
+        request.source().highlighter(new HighlightBuilder()
+                .field("name").field("brand")
+                .requireFieldMatch(false)
+                .preTags("<h1>")
+                .postTags("</h1>")
+        );
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        parseResponse(response);
+    }
 }
