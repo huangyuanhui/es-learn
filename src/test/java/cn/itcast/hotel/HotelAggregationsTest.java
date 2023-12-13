@@ -61,4 +61,7 @@ public class HotelAggregationsTest {
             System.out.println("brandKey = " + brandKey);
         }
     }
+
+
+
 }

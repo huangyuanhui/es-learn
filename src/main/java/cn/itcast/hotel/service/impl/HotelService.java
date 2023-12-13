@@ -22,6 +22,10 @@ import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
@@ -31,6 +35,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -69,6 +74,141 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
             // 解析响应
             return parseResponse(response);
         } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public Map<String, List<String>> filters() {
+        try {
+            // 准备Request
+            SearchRequest request = new SearchRequest("hotel");
+            // 准备DSL
+            request.source().size(0);
+            // 城市聚合
+            request.source().aggregation(
+                    AggregationBuilders
+                            .terms("cityAgg")
+                            .field("city")
+                            .size(100)
+            );
+            // 品牌聚合
+            request.source().aggregation(
+                    AggregationBuilders
+                            .terms("brandAgg")
+                            .field("brand")
+                            .size(100)
+            );
+            // 品牌聚合
+            request.source().aggregation(
+                    AggregationBuilders
+                            .terms("starAgg")
+                            .field("starName")
+                            .size(100)
+            );
+            // 发送请求
+            SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+            // 结果解析
+            Aggregations aggregations = response.getAggregations();
+            Map<String, List<String>> filters = new HashMap<>();
+            // 解析城市聚合
+            Terms cityAgg = aggregations.get("cityAgg");
+            List<? extends Terms.Bucket> cityBuckets = cityAgg.getBuckets();
+            List<String> cites = new ArrayList<>();
+            for (Terms.Bucket bucket : cityBuckets) {
+                String city = bucket.getKeyAsString();
+                cites.add(city);
+            }
+            filters.put("城市", cites);
+            // 解析品牌聚合
+            Terms brandAgg = aggregations.get("brandAgg");
+            List<? extends Terms.Bucket> brandBuckets = brandAgg.getBuckets();
+            List<String> brands = new ArrayList<>();
+            for (Terms.Bucket bucket : brandBuckets) {
+                String brand = bucket.getKeyAsString();
+                brands.add(brand);
+            }
+            filters.put("品牌", brands);
+            // 解析星级聚合
+            Terms starAgg = aggregations.get("starAgg");
+            List<? extends Terms.Bucket> starBuckets = starAgg.getBuckets();
+            List<String> starNames = new ArrayList<>();
+            for (Terms.Bucket bucket : starBuckets) {
+                String starName = bucket.getKeyAsString();
+                starNames.add(starName);
+            }
+            filters.put("星级", starNames);
+            return filters;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public Map<String, List<String>> filters(RequestParams params) {
+        try {
+            // 准备Request
+            SearchRequest request = new SearchRequest("hotel");
+            // 限定聚合范围
+            QueryBuilder boolQuery = buildBasicQuery(params);
+            request.source().query(boolQuery);
+            // 准备DSL
+            request.source().size(0);
+            // 城市聚合
+            request.source().aggregation(
+                    AggregationBuilders
+                            .terms("cityAgg")
+                            .field("city")
+                            .size(100)
+            );
+            // 品牌聚合
+            request.source().aggregation(
+                    AggregationBuilders
+                            .terms("brandAgg")
+                            .field("brand")
+                            .size(100)
+            );
+            // 品牌聚合
+            request.source().aggregation(
+                    AggregationBuilders
+                            .terms("starAgg")
+                            .field("starName")
+                            .size(100)
+            );
+            // 发送请求
+            SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+            // 结果解析
+            Aggregations aggregations = response.getAggregations();
+            Map<String, List<String>> filters = new HashMap<>();
+            // 解析城市聚合
+            Terms cityAgg = aggregations.get("cityAgg");
+            List<? extends Terms.Bucket> cityBuckets = cityAgg.getBuckets();
+            List<String> cites = new ArrayList<>();
+            for (Terms.Bucket bucket : cityBuckets) {
+                String city = bucket.getKeyAsString();
+                cites.add(city);
+            }
+            filters.put("city", cites);
+            // 解析品牌聚合
+            Terms brandAgg = aggregations.get("brandAgg");
+            List<? extends Terms.Bucket> brandBuckets = brandAgg.getBuckets();
+            List<String> brands = new ArrayList<>();
+            for (Terms.Bucket bucket : brandBuckets) {
+                String brand = bucket.getKeyAsString();
+                brands.add(brand);
+            }
+            filters.put("brand", brands);
+            // 解析星级聚合
+            Terms starAgg = aggregations.get("starAgg");
+            List<? extends Terms.Bucket> starBuckets = starAgg.getBuckets();
+            List<String> starNames = new ArrayList<>();
+            for (Terms.Bucket bucket : starBuckets) {
+                String starName = bucket.getKeyAsString();
+                starNames.add(starName);
+            }
+            filters.put("starName", starNames);
+            return filters;
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
